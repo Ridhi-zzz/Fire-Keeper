@@ -954,6 +954,17 @@ func create_pause_screen() -> void:
 	pause_input_handler.pause_requested.connect(_toggle_pause)
 	canvas.add_child(pause_input_handler)
 
+	var pause_button := Button.new()
+	pause_button.name = "PauseButton"
+	pause_button.text = "Ⅱ"
+	pause_button.tooltip_text = "Pause (P)"
+	pause_button.custom_minimum_size = Vector2(48, 42)
+	pause_button.add_theme_font_size_override("font_size", 22)
+	pause_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	pause_button.position = Vector2(-64, 18)
+	pause_button.pressed.connect(_toggle_pause)
+	canvas.add_child(pause_button)
+
 	pause_overlay = Control.new()
 	pause_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
 	pause_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

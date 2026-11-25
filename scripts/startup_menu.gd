@@ -175,12 +175,18 @@ func _show_audio_settings() -> void:
 	_add_audio_slider("MUSIC VOLUME", AudioManager.music_volume, AudioManager.set_music_volume)
 	_add_audio_slider("SOUND EFFECTS", AudioManager.sfx_volume, AudioManager.set_sfx_volume)
 
+	_add_back_button()
+
+
+func _add_back_button() -> void:
 	var back := Button.new()
-	back.text = "BACK TO MENU"
-	back.custom_minimum_size = Vector2(240, 48)
-	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	back.text = "BACK"
+	back.custom_minimum_size = Vector2(90, 38)
+	back.add_theme_font_size_override("font_size", 14)
+	back.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	back.position = Vector2(-112, 24)
 	back.pressed.connect(_show_main_menu)
-	content.add_child(back)
+	add_child(back)
 
 
 func _add_audio_slider(label_text: String, initial_value: float, setter: Callable) -> void:
@@ -235,12 +241,7 @@ func _show_controls() -> void:
 	_add_info_line("BOSS FIRE FRAGMENTS", "Rare boss rewards. You can collect and view them in the Workshop, but they have no use yet.")
 	_add_info_line("ROOM REWARDS", "Clear a room to choose one of three run upgrades. Your choice lasts until the run ends.")
 
-	var back := Button.new()
-	back.text = "BACK TO MENU"
-	back.custom_minimum_size = Vector2(240, 48)
-	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	back.pressed.connect(_show_main_menu)
-	content.add_child(back)
+	_add_back_button()
 
 
 func _add_info_line(heading_text: String, body_text: String) -> void:

@@ -44,15 +44,35 @@ func _process(delta: float) -> void:
 func _build_interface() -> void:
 	var shade := ColorRect.new()
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	shade.color = Color(0.025, 0.03, 0.04, 0.97)
+	shade.color = Color("#11171D")
 	add_child(shade)
+
+	var backdrop := Control.new()
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	backdrop.draw.connect(func() -> void:
+		var viewport_size := get_viewport_rect().size
+		backdrop.draw_circle(Vector2(viewport_size.x * 0.5, viewport_size.y * 0.45), minf(viewport_size.x, viewport_size.y) * 0.34, Color(0.72, 0.25, 0.07, 0.07))
+		backdrop.draw_circle(Vector2(viewport_size.x * 0.5, viewport_size.y * 0.45), minf(viewport_size.x, viewport_size.y) * 0.23, Color(0.95, 0.42, 0.08, 0.045))
+	)
+	add_child(backdrop)
 
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(650, 0)
+	panel.custom_minimum_size = Vector2(680, 0)
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color("#1B242C")
+	panel_style.border_color = Color("#80502F")
+	panel_style.set_border_width_all(2)
+	panel_style.set_corner_radius_all(12)
+	panel_style.content_margin_left = 24
+	panel_style.content_margin_right = 24
+	panel_style.content_margin_top = 20
+	panel_style.content_margin_bottom = 18
+	panel.add_theme_stylebox_override("panel", panel_style)
 	center.add_child(panel)
 
 	var outer := VBoxContainer.new()
@@ -66,12 +86,13 @@ func _build_interface() -> void:
 	title.text = "THE WORKSHOP"
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", Color("#FFB66A"))
+	title.add_theme_color_override("font_color", Color("#FFE0A0"))
 	header.add_child(title)
 
 	var back_button := Button.new()
 	back_button.text = "BACK"
 	back_button.custom_minimum_size = Vector2(90, 38)
+	back_button.add_theme_font_size_override("font_size", 14)
 	back_button.pressed.connect(_on_back_pressed)
 	header.add_child(back_button)
 
@@ -156,6 +177,7 @@ func _build_interface() -> void:
 
 	cauldron_action_button = Button.new()
 	cauldron_action_button.custom_minimum_size = Vector2(0, 46)
+	cauldron_action_button.add_theme_font_size_override("font_size", 16)
 	cauldron_action_button.pressed.connect(_on_cauldron_action)
 	outer.add_child(cauldron_action_button)
 
@@ -187,6 +209,7 @@ func _build_interface() -> void:
 	var reset_button := Button.new()
 	reset_button.text = "RESET ALL SAVE DATA"
 	reset_button.custom_minimum_size = Vector2(0, 32)
+	reset_button.add_theme_font_size_override("font_size", 12)
 	reset_button.add_theme_color_override("font_color", Color("#FF9A8C"))
 	reset_button.pressed.connect(_on_reset_pressed)
 	outer.add_child(reset_button)
