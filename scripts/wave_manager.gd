@@ -31,7 +31,7 @@ func setup(new_player: Node2D, new_arena: Node2D) -> void:
 
 
 func start_run() -> void:
-	current_room = 1
+	current_room = clampi(GameData.test_room_override, 1, TOTAL_ROOMS) if GameData.test_room_override > 0 else 1
 	current_wave = 1
 	run_finished = false
 	waiting_for_buff = false
@@ -185,7 +185,7 @@ func spawn_normal_wave(amount: int) -> void:
 func spawn_candle_golem_encounter() -> void:
 	var boss = CANDLE_GOLEM_SCENE.instantiate()
 	arena.add_child(boss)
-	boss.global_position = player.global_position + Vector2(0, -190)
+	boss.global_position = Vector2.ZERO
 	boss.ai_enabled = true
 
 	# The Golem encounter retains its four candle guards.
@@ -207,7 +207,7 @@ func spawn_candle_golem_encounter() -> void:
 func spawn_lantern_warden_encounter() -> void:
 	var boss = LANTERN_BOSS_SCENE.instantiate()
 	arena.add_child(boss)
-	boss.global_position = player.global_position + Vector2(0, -200)
+	boss.global_position = Vector2.ZERO
 
 
 func continue_after_buff() -> void:

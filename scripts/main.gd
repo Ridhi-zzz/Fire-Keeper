@@ -2,6 +2,13 @@
 extends Node2D
 
 
+class PauseKeyHandler extends Node:
+	signal pause_requested
+	func _input(event: InputEvent) -> void:
+		if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_P:
+			pause_requested.emit()
+
+
 class BossHeartDisplay extends Control:
 	var current_health: int = 0
 	var maximum_health: int = 0
@@ -348,7 +355,7 @@ var run_start_fire_fragments: int = 0
 var run_start_boss_fragments: int = 0
 var run_summary_shown: bool = false
 var pause_overlay: Control
-var pause_button: Button
+var pause_input_handler: PauseKeyHandler
 
 var selected_buffs: Array[Dictionary] = []
 
@@ -359,20 +366,21 @@ var buff_pool: Array[Dictionary] = [
 	{"id":"movement","name":"LIGHT FEET","description":"Movement speed increased by 8%.","max":3,"category":"MOBILITY","icon":"SPD"},
 	{"id":"burst_charge","name":"HOTTER FLAME","description":"Fire Burst needs 2 fewer hits to charge.","max":5,"category":"OFFENSE","icon":"FIRE"},
 	{"id":"kindling","name":"KINDLING","description":"Immediately restore 2 hearts.","max":999,"category":"RECOVERY","icon":"HP","heal":true},
-	{"id":"overloaded","name":"OVERLOADED CHAMBER","description":"Shotgun: one burst per magazine, +1 damage per pellet, recoil, and a 5% misfire chance.","max":1,"category":"SHOTGUN","cauldron":"shotgun"},
-	{"id":"triple_spread","name":"TRIPLE SPREAD","description":"Ranged: fire 3 projectiles in a cone; each consumes one bullet.","max":1,"category":"RANGED","cauldron":"ranged","exclusive":"twin_shot"},
-	{"id":"twin_shot","name":"TWIN SHOT","description":"Ranged: fire 2 parallel projectiles; consumes 2 bullets per trigger pull.","max":1,"category":"RANGED","cauldron":"ranged","exclusive":"triple_spread"},
-	{"id":"combustion","name":"COMBUSTION","description":"Every 5 kills trigger an explosion dealing 1 damage to nearby enemies.","max":3,"category":"OFFENSE"},
-	{"id":"ember_shield","name":"EMBER SHIELD","description":"+0.35 seconds of invulnerability after taking damage.","max":2,"category":"DEFENSE"},
-	{"id":"afterburn","name":"AFTERBURN","description":"Dashing leaves a fire trail that deals 1 damage to enemies.","max":2,"category":"OFFENSE"},
+	{"id":"overloaded","name":"OVERLOADED CHAMBER","description":"Shotgun: one burst per magazine, 2 damage per pellet, recoil, and a 15% misfire chance.","max":1,"category":"SHOTGUN","cauldron":"shotgun"},
+	{"id":"triple_spread","name":"TRIPLE SPREAD","description":"Ranged: fire 3 projectiles in a cone; each trigger uses 2 magazine rounds.","max":1,"category":"RANGED","cauldron":"ranged","exclusive":"twin_shot"},
+	{"id":"twin_shot","name":"TWIN SHOT","description":"Ranged: fire 2 parallel projectiles; each trigger uses 1 magazine round.","max":1,"category":"RANGED","cauldron":"ranged","exclusive":"triple_spread"},
+	{"id":"combustion","name":"COMBUSTION","description":"Every 5 kills trigger a visible explosion dealing 1 damage to nearby enemies.","max":3,"category":"OFFENSE"},
+	{"id":"ember_shield","name":"EMBER SHIELD","description":"A protective ember shield extends damage protection after a hit.","max":2,"category":"DEFENSE"},
+	{"id":"afterburn","name":"AFTERBURN","description":"Dashing leaves a lingering, damaging trail of fire.","max":2,"category":"OFFENSE"},
 	{"id":"volatile","name":"VOLATILE FLAMES","description":"Fire Burst deals +1 damage.","max":3,"category":"OFFENSE"},
-	{"id":"double_drop","name":"DOUBLE TROUBLE","description":"15% chance for normal enemies to drop double Fire Fragments.","max":1,"category":"ECONOMY"},
+	{"id":"double_drop","name":"DOUBLE TROUBLE","description":"20% chance for normal enemies to drop double Fire Fragments.","max":1,"category":"ECONOMY"},
 	{"id":"soul_conversion","name":"SOUL CONVERSION","description":"Fire Fragments heal 1/4 heart while injured; currency only at full health.","max":1,"category":"RECOVERY"},
 	{"id":"magnet","name":"EMBER MAGNET","description":"Attract nearby Fire Fragment and health pickups from farther away.","max":1,"category":"UTILITY"}
 ]
 
 
 func _ready() -> void:
+	AudioManager.play_music("dungeon")
 	randomize()
 	run_elapsed_seconds = 0.0
 	run_start_fire_fragments = GameData.fire_fragments
@@ -506,14 +514,6 @@ func create_hud() -> void:
 	boss_heart_display.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	boss_box.add_child(boss_heart_display)
 
-	pause_button = Button.new()
-	pause_button.text = "||"
-	pause_button.tooltip_text = "Pause"
-	pause_button.custom_minimum_size = Vector2(48, 42)
-	pause_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	pause_button.position = Vector2(-66, 18)
-	pause_button.pressed.connect(_toggle_pause)
-	canvas.add_child(pause_button)
 
 
 func _update_boss_health_bar() -> void:
@@ -587,6 +587,7 @@ func _on_wave_started(
 
 
 func _on_room_cleared(room_number: int) -> void:
+	AudioManager.play_sfx("room_clear")
 	show_buff_screen(room_number)
 
 
@@ -750,6 +751,7 @@ func show_buff_screen(room_number: int) -> void:
 
 
 func _choose_buff(index: int) -> void:
+	AudioManager.play_sfx("upgrade")
 	if index < 0 or index >= selected_buffs.size():
 		return
 	apply_buff(selected_buffs[index])
@@ -872,7 +874,6 @@ func show_defeat_screen() -> void:
 
 	game_over = true
 	pause_overlay.visible = false
-	pause_button.visible = false
 	defeat_overlay.visible = false
 	completion_overlay.visible = false
 	show_run_summary(false)
@@ -936,7 +937,6 @@ func create_completion_screen() -> void:
 func _on_run_completed() -> void:
 	game_over = true
 	pause_overlay.visible = false
-	pause_button.visible = false
 	defeat_overlay.visible = false
 	completion_overlay.visible = false
 	show_run_summary(true)
@@ -948,6 +948,11 @@ func create_pause_screen() -> void:
 	canvas.layer = 15
 	canvas.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(canvas)
+	pause_input_handler = PauseKeyHandler.new()
+	pause_input_handler.name = "PauseKeyHandler"
+	pause_input_handler.process_mode = Node.PROCESS_MODE_ALWAYS
+	pause_input_handler.pause_requested.connect(_toggle_pause)
+	canvas.add_child(pause_input_handler)
 
 	pause_overlay = Control.new()
 	pause_overlay.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -962,8 +967,8 @@ func create_pause_screen() -> void:
 
 	var panel := PanelContainer.new()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	panel.position = Vector2(-190, -175)
-	panel.size = Vector2(380, 350)
+	panel.position = Vector2(-220, -235)
+	panel.size = Vector2(440, 470)
 	pause_overlay.add_child(panel)
 
 	var layout := VBoxContainer.new()
@@ -977,10 +982,32 @@ func create_pause_screen() -> void:
 	heading.add_theme_color_override("font_color", Color("#FFB66A"))
 	layout.add_child(heading)
 
+	_add_audio_slider(layout, "MASTER VOLUME", AudioManager.master_volume, AudioManager.set_master_volume)
+	_add_audio_slider(layout, "MUSIC VOLUME", AudioManager.music_volume, AudioManager.set_music_volume)
+	_add_audio_slider(layout, "SOUND EFFECTS", AudioManager.sfx_volume, AudioManager.set_sfx_volume)
+
 	_add_pause_menu_button(layout, "RESUME", _resume_game)
 	_add_pause_menu_button(layout, "RESTART RUN", _confirm_pause_restart)
 	_add_pause_menu_button(layout, "WORKSHOP", _return_to_menu_with_workshop)
 	_add_pause_menu_button(layout, "MAIN MENU", _return_to_main_menu)
+
+
+func _add_audio_slider(parent: VBoxContainer, caption: String, initial_value: float, setter: Callable) -> void:
+	var label := Label.new()
+	label.text = caption
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_color_override("font_color", Color("#E8D8BD"))
+	parent.add_child(label)
+
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.01
+	slider.value = initial_value
+	slider.custom_minimum_size = Vector2(260, 18)
+	slider.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	slider.value_changed.connect(setter)
+	parent.add_child(slider)
 
 
 func _add_pause_menu_button(parent: VBoxContainer, caption: String, callback: Callable) -> void:
@@ -992,24 +1019,28 @@ func _add_pause_menu_button(parent: VBoxContainer, caption: String, callback: Ca
 	parent.add_child(button)
 
 
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_F1:
+			GameData.test_room_override = 0
+			get_tree().change_scene_to_file("res://scenes/general_test_arena.tscn")
+			return
+
 func _toggle_pause() -> void:
 	if game_over or buff_overlay.visible or run_summary_overlay.visible:
 		return
 	if get_tree().paused:
 		_resume_game()
 	else:
+		AudioManager.play_sfx("ui_click")
 		pause_overlay.visible = true
-		pause_button.text = ">"
-		pause_button.tooltip_text = "Resume"
 		get_tree().paused = true
 
 
 func _resume_game() -> void:
+	AudioManager.play_sfx("ui_click")
 	pause_overlay.visible = false
 	get_tree().paused = false
-	if is_instance_valid(pause_button):
-		pause_button.text = "||"
-		pause_button.tooltip_text = "Pause"
 
 
 func _confirm_pause_restart() -> void:

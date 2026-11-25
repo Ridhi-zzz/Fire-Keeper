@@ -24,6 +24,8 @@ var cauldron_status_label: Label
 var boss_name_label: Label
 var boss_heart_display: Control
 var selector_buttons: Array[Button] = []
+var room_selector: OptionButton
+var buff_selector: OptionButton
 
 
 func _ready() -> void:
@@ -163,6 +165,43 @@ func _create_test_hud() -> void:
 		selector.add_child(button)
 		selector_buttons.append(button)
 
+	# Developer menu for room and run-buff testing.
+	var dev_panel := PanelContainer.new()
+	dev_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	dev_panel.position = Vector2(-330, 12)
+	dev_panel.custom_minimum_size = Vector2(310, 190)
+	canvas.add_child(dev_panel)
+	var dev_box := VBoxContainer.new()
+	dev_box.add_theme_constant_override("separation", 5)
+	dev_panel.add_child(dev_box)
+	var dev_title := Label.new()
+	dev_title.text = "DEVELOPMENT TEST MENU"
+	dev_title.add_theme_color_override("font_color", Color("#FFE0A0"))
+	dev_box.add_child(dev_title)
+	room_selector = OptionButton.new()
+	for room_number in range(1, 9):
+		room_selector.add_item("Room %d" % room_number, room_number)
+	dev_box.add_child(room_selector)
+	buff_selector = OptionButton.new()
+	var buff_names := ["None", "Critical Chance", "Extra Dash", "Quick Recovery", "Light Feet", "Hotter Flame", "Kindling", "Overloaded Chamber", "Triple Spread", "Twin Shot", "Combustion", "Ember Shield", "Afterburn", "Volatile Flames", "Double Trouble", "Soul Conversion", "Ember Magnet"]
+	var buff_ids := ["", "crit", "extra_dash", "dash_cooldown", "movement", "burst_charge", "kindling", "overloaded", "triple_spread", "twin_shot", "combustion", "ember_shield", "afterburn", "volatile", "double_drop", "soul_conversion", "magnet"]
+	for i in range(buff_names.size()):
+		buff_selector.add_item(buff_names[i], i)
+		buff_selector.set_item_metadata(i, buff_ids[i])
+	dev_box.add_child(buff_selector)
+	var apply_button := Button.new()
+	apply_button.text = "APPLY SELECTED BUFF TO DUMMY"
+	apply_button.pressed.connect(_apply_selected_test_buff)
+	dev_box.add_child(apply_button)
+	var load_button := Button.new()
+	load_button.text = "LOAD SELECTED ROOM"
+	load_button.pressed.connect(_load_selected_room)
+	dev_box.add_child(load_button)
+	var dummy_button := Button.new()
+	dummy_button.text = "RETURN TO DUMMY ROOM"
+	dummy_button.pressed.connect(_return_to_dummy_room)
+	dev_box.add_child(dummy_button)
+
 	boss_name_label = Label.new()
 	boss_name_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	boss_name_label.position = Vector2(-160, 12)
@@ -210,7 +249,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed or event.echo:
 		return
 	if event.keycode == KEY_ESCAPE:
-		get_tree().change_scene_to_file("res://scenes/startup_menu.tscn")
+		_return_to_dummy_room()
 		return
 	if event.keycode >= KEY_1 and event.keycode <= KEY_7:
 		var index := int(event.keycode - KEY_1)
@@ -220,6 +259,33 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		player.stats_changed.emit(player.fire_fragments, player.health)
 	elif event.keycode == KEY_T:
 		_reset_test_dummies()
+
+
+func _apply_selected_test_buff() -> void:
+	if not is_instance_valid(player) or not is_instance_valid(buff_selector):
+		return
+	var buff_id := str(buff_selector.get_item_metadata(buff_selector.selected))
+	if buff_id != "":
+		player.apply_run_buff(buff_id)
+	_update_cauldron_status()
+
+
+func _load_selected_room() -> void:
+	if not is_instance_valid(room_selector):
+		return
+	GameData.test_room_override = room_selector.get_selected_id()
+	GameData.test_buffs.clear()
+	if is_instance_valid(player):
+		for buff_id in player.run_buffs.keys():
+			for stack_index in range(int(player.run_buffs[buff_id])):
+				GameData.test_buffs.append(str(buff_id))
+	get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+func _return_to_dummy_room() -> void:
+	GameData.test_room_override = 0
+	GameData.test_buffs.clear()
+	get_tree().change_scene_to_file("res://scenes/general_test_arena.tscn")
 
 
 func _update_stats(fire_amount: int, current_health: int) -> void:

@@ -50,6 +50,7 @@ func collect(player: Node2D) -> void:
 	if collected:
 		return
 
+	AudioManager.play_sfx("pickup", 0.8)
 	collected = true
 	collection_target = player
 

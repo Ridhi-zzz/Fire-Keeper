@@ -440,6 +440,7 @@ func get_attack_target_position(from_position: Vector2) -> Vector2:
 func take_damage(amount: float, attack_direction: Vector2 = Vector2.ZERO) -> void:
 	if amount <= 0 or is_dying or health <= 0:
 		return
+	AudioManager.play_sfx("boss_shield" if shield_active else "enemy_hit", 0.9)
 
 	# The first hit only shatters the shield. It never reduces boss health
 	# and therefore does not consume damage-upgrade/special-charge progress.

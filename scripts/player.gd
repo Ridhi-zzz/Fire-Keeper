@@ -33,13 +33,17 @@ var cooldown_timer: float = 0.0
 var attack_direction: Vector2 = Vector2.RIGHT
 
 # Q: Dash / dodge.
-@export var dash_speed: float = 325.0
-@export var dash_duration: float = 0.18
+@export var dash_speed: float = 400.0
+@export var dash_duration: float = 0.24
 @export var dash_cooldown: float = 2.0
 var dash_timer: float = 0.0
+var dash_invulnerable: bool = false
 var dash_cooldown_timer: float = 0.0
 var dash_velocity: Vector2 = Vector2.ZERO
 var dash_direction: Vector2 = Vector2.DOWN
+var dash_original_collision_mask: int = 1
+var dash_original_collision_layer: int = 1
+var afterburn_trail: Node2D = null
 
 # E: Special fire burst.
 @export var special_damage: int = 2
@@ -51,6 +55,8 @@ var special_visual_timer: float = 0.0
 const SPECIAL_VISUAL_DURATION := 0.42
 const CAULDRON_PROJECTILE_SCRIPT = preload("res://scripts/cauldron_projectile.gd")
 const TEAL_SWEEP_SCRIPT = preload("res://scripts/cauldron_teal_sweep.gd")
+const AFTERBURN_TRAIL_SCRIPT = preload("res://scripts/afterburn_trail.gd")
+const COMBUSTION_EFFECT_SCRIPT = preload("res://scripts/combustion_effect.gd")
 
 var cauldron_id: String = "default"
 var magazine_ammo: int = 0
@@ -97,6 +103,9 @@ func _ready() -> void:
 	attack_damage += GameData.permanent_damage_bonus
 	health = max_health
 
+	for debug_buff in GameData.test_buffs:
+		apply_run_buff(debug_buff)
+	GameData.test_buffs.clear()
 	for upgrade_id in GameData.take_pending_temp_upgrades():
 		match upgrade_id:
 			"temp_damage":
@@ -160,9 +169,9 @@ func set_cauldron_for_test(new_cauldron_id: String) -> void:
 
 func get_cauldron_status() -> String:
 	if cauldron_id == "ranged":
-		return "AMMO  %d / 6%s" % [magazine_ammo, "  ·  RELOADING" if is_reloading else ""]
+		return "AMMO  %d / %d%s" % [magazine_ammo, magazine_size, "  ·  RELOADING" if is_reloading else ""]
 	if cauldron_id == "shotgun":
-		return "BURSTS  %d / 2%s" % [magazine_ammo, "  ·  RELOADING" if is_reloading else ""]
+		return "BURSTS  %d / %d%s" % [magazine_ammo, magazine_size, "  ·  RELOADING" if is_reloading else ""]
 	if cauldron_id == "thinner":
 		return "DASH CHARGES  %d / 2" % dash_charges
 	return "CAULDRON  " + cauldron_id.to_upper()
@@ -223,6 +232,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _start_dash() -> void:
+	AudioManager.play_sfx("dash")
 	if dash_timer > 0.0:
 		return
 	if cauldron_id == "thinner":
@@ -255,6 +265,18 @@ func _start_dash() -> void:
 	dash_velocity = dash_direction * dash_speed
 	knockback_velocity = Vector2.ZERO
 	dash_timer = dash_duration
+	dash_invulnerable = true
+	# Temporarily remove the player from BOTH sides of physics collision.
+	# Disabling only the player's mask is insufficient: enemy masks can still
+	# detect the player's collision layer and push/block the player.
+	dash_original_collision_mask = collision_mask
+	dash_original_collision_layer = collision_layer
+	collision_layer = 0
+	collision_mask = 0
+	if afterburn_enabled:
+		afterburn_trail = AFTERBURN_TRAIL_SCRIPT.new() as Node2D
+		get_tree().current_scene.add_child(afterburn_trail)
+		afterburn_trail.begin(global_position)
 	dash_cooldown_timer = maxf(0.1, dash_cooldown - dash_cooldown_reduction)
 
 	# Invulnerability lasts for the complete dash window.
@@ -262,6 +284,7 @@ func _start_dash() -> void:
 
 
 func _perform_special_attack() -> void:
+	AudioManager.play_sfx("fire_burst")
 	if special_charge < special_charge_required:
 		return
 
@@ -327,17 +350,15 @@ func _physics_process(delta: float) -> void:
 
 	if dash_timer > 0.0:
 		dash_timer = maxf(0.0, dash_timer - delta)
-		if afterburn_enabled:
-			for enemy in get_tree().get_nodes_in_group("enemies"):
-				if not is_instance_valid(enemy) or not enemy is Node2D or enemy.get("is_dying") == true:
-					continue
-				var enemy_id: int = enemy.get_instance_id()
-				if not afterburn_hit_ids.has(enemy_id) and enemy.global_position.distance_to(global_position) <= 48.0 and enemy.has_method("take_damage"):
-					afterburn_hit_ids[enemy_id] = true
-					enemy.take_damage(1, dash_direction)
+		if is_instance_valid(afterburn_trail):
+			afterburn_trail.add_point(global_position)
 		velocity = dash_velocity
 		move_and_slide()
 		_keep_inside_arena()
+		if dash_timer <= 0.0:
+			collision_layer = dash_original_collision_layer
+			collision_mask = dash_original_collision_mask
+			dash_invulnerable = false
 		return
 
 	var normal_velocity := direction * move_speed * (1.0 + movement_speed_bonus)
@@ -375,6 +396,7 @@ func _keep_inside_arena() -> void:
 func perform_attack() -> void:
 	if cooldown_timer > 0.0:
 		return
+	AudioManager.play_sfx("melee" if cauldron_id not in ["ranged", "shotgun"] else "projectile")
 	if cauldron_id == "ranged" or cauldron_id == "shotgun":
 		if is_reloading:
 			return
@@ -391,26 +413,28 @@ func perform_attack() -> void:
 			if ranged_triple_spread:
 				for angle_degrees in [-18.0, 0.0, 18.0]:
 					_spawn_cauldron_projectile(attack_direction.rotated(deg_to_rad(angle_degrees)), ranged_damage, Color("#E8B65A"), 470.0)
-				magazine_ammo -= 3
+				magazine_ammo -= 2
 			elif ranged_twin_shot:
 				for side_offset in [-7.0, 7.0]:
 					var twin = CAULDRON_PROJECTILE_SCRIPT.new()
 					get_tree().current_scene.add_child(twin)
 					twin.global_position = global_position + Vector2(0.0, -8.0) + attack_direction.orthogonal() * side_offset
 					twin.setup(attack_direction, ranged_damage, 470.0, Color("#E8B65A"))
-				magazine_ammo -= 2
+				magazine_ammo -= 1
 			else:
 				_spawn_cauldron_projectile(attack_direction, ranged_damage, Color("#E8B65A"), 470.0)
 				magazine_ammo -= 1
 			cooldown_timer = 0.16
 		else:
-			if overloaded_chamber and randf() < 0.05:
+			var misfire_chance: float = 0.15 if overloaded_chamber else 0.05
+			if randf() < misfire_chance:
+				_spawn_misfire_effect()
 				for enemy in get_tree().get_nodes_in_group("enemies"):
 					if is_instance_valid(enemy) and enemy is Node2D and enemy.global_position.distance_to(global_position) <= 125.0 and enemy.has_method("take_damage"):
 						enemy.take_damage(3, (enemy.global_position - global_position).normalized())
 				take_damage(1, -attack_direction)
 			else:
-				var pellet_damage: float = (0.2 * float(attack_damage)) + (1.0 if overloaded_chamber else 0.0)
+				var pellet_damage: float = 2.0 if overloaded_chamber else 1.0
 				if crit_chance > 0.0 and randf() < crit_chance:
 					pellet_damage *= 2.0
 				for angle_degrees in [-18.0, -9.0, 0.0, 9.0, 18.0]:
@@ -434,9 +458,12 @@ func perform_attack() -> void:
 		attack_visual_timer = attack_animation_duration
 	if cauldron_id == "teal":
 		var sweep = TEAL_SWEEP_SCRIPT.new()
-		get_tree().current_scene.add_child(sweep)
-		sweep.z_index = z_index + 2
-		sweep.global_position = global_position
+		add_child(sweep)
+		sweep.position = Vector2.ZERO
+		# Keep the blade on the player's Y-sorted layer so it stays above
+		# the floor, but draw it behind the cauldron itself.
+		sweep.z_index = 0
+		sweep.show_behind_parent = true
 		sweep.setup(attack_direction, float(attack_damage))
 		queue_redraw()
 		return
@@ -478,9 +505,13 @@ func take_damage(
 	amount: int,
 	knockback_direction: Vector2 = Vector2.ZERO
 ) -> void:
-	if invulnerability_timer > 0.0 or health <= 0:
+	# Dash protection is a dedicated state, not a timer. This guarantees
+	# invulnerability for every physics frame of the dash animation, even if
+	# the render and physics frame updates do not line up perfectly.
+	if dash_invulnerable or invulnerability_timer > 0.0 or health <= 0:
 		return
 
+	AudioManager.play_sfx("player_hit")
 	health = maxi(0, health - amount * 2)
 	invulnerability_timer = 0.65 + ember_shield_bonus
 
@@ -539,8 +570,12 @@ func apply_run_buff(buff_id: String) -> void:
 			magazine_ammo = mini(magazine_ammo, 1)
 		"triple_spread":
 			ranged_triple_spread = true
+			magazine_size = 6
+			magazine_ammo = mini(magazine_ammo, magazine_size)
 		"twin_shot":
 			ranged_twin_shot = true
+			magazine_size = 4
+			magazine_ammo = mini(magazine_ammo, magazine_size)
 		"combustion":
 			pass
 		"ember_shield":
@@ -550,7 +585,7 @@ func apply_run_buff(buff_id: String) -> void:
 		"volatile":
 			volatile_flame_bonus += 1
 		"double_drop":
-			double_drop_chance = 0.15
+			double_drop_chance = 0.20
 		"soul_conversion":
 			soul_conversion_enabled = true
 		"magnet":
@@ -561,12 +596,23 @@ func apply_run_buff(buff_id: String) -> void:
 	stats_changed.emit(fire_fragments, health)
 
 
+func _spawn_misfire_effect() -> void:
+	var effect = COMBUSTION_EFFECT_SCRIPT.new()
+	get_tree().current_scene.add_child(effect)
+	effect.global_position = global_position
+	effect.set("misfire_style", true)
+
+
+
 func notify_enemy_killed(enemy_position: Vector2) -> void:
 	if int(run_buffs.get("combustion", 0)) <= 0:
 		return
 	combustion_kill_counter += 1
 	if combustion_kill_counter >= 5:
 		combustion_kill_counter = 0
+		var effect = COMBUSTION_EFFECT_SCRIPT.new()
+		get_tree().current_scene.add_child(effect)
+		effect.global_position = enemy_position
 		for enemy in get_tree().get_nodes_in_group("enemies"):
 			if is_instance_valid(enemy) and enemy is Node2D and enemy.global_position.distance_to(enemy_position) <= 105.0 and enemy.has_method("take_damage"):
 				enemy.take_damage(1, (enemy.global_position - enemy_position).normalized())
@@ -694,6 +740,22 @@ func _draw() -> void:
 		)
 
 	# --------------------------------
+	# EMBER SHIELD visual: persistent teal ward, brightens while protected.
+	if int(run_buffs.get("ember_shield", 0)) > 0:
+		var pulse := 0.5 + 0.5 * sin(reaction_time * 4.0)
+		var protected := invulnerability_timer > 0.0 and dash_timer <= 0.0
+		var alpha := 0.42 + pulse * 0.15
+		if protected:
+			alpha = 0.9
+		draw_circle(Vector2(0, -2), 31.0, Color(0.15, 0.78, 0.82, alpha * 0.12))
+		draw_arc(Vector2(0, -2), 31.0 + pulse * 2.0, 0.0, TAU, 48,
+			Color(0.35, 0.96, 0.94, alpha), 2.8, true)
+		for shard_index in range(6):
+			var shard_angle := TAU * float(shard_index) / 6.0 + reaction_time * 0.18
+			var shard_dir := Vector2.RIGHT.rotated(shard_angle)
+			draw_line(shard_dir * 27.0, shard_dir * 34.0,
+				Color("#B9FFEF") if protected else Color("#63D8D0"), 2.0)
+
 	# DASH / INVULNERABILITY EFFECT
 	# --------------------------------
 

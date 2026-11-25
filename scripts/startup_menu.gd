@@ -11,6 +11,7 @@ var background_art: Control
 
 
 func _ready() -> void:
+	AudioManager.play_music("menu")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_build_background()
@@ -141,9 +142,9 @@ func _show_main_menu() -> void:
 	content.add_child(spacer)
 
 	_add_menu_button("START GAME", _start_game)
-	_add_menu_button("TEST ARENA", _open_test_arena)
 	_add_menu_button("WORKSHOP", _open_workshop)
 	_add_menu_button("CONTROLS", _show_controls)
+	_add_menu_button("AUDIO SETTINGS", _show_audio_settings)
 
 	var footer := Label.new()
 	footer.text = "WASD TO MOVE  ·  KEEP YOUR FIRE BURNING"
@@ -151,6 +152,60 @@ func _show_main_menu() -> void:
 	footer.add_theme_font_size_override("font_size", 11)
 	footer.add_theme_color_override("font_color", Color("#727E87"))
 	content.add_child(footer)
+
+
+func _show_audio_settings() -> void:
+	_clear_content()
+	content = VBoxContainer.new()
+	content.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	content.position = Vector2(-270, -220)
+	content.size = Vector2(540, 440)
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	content.add_theme_constant_override("separation", 18)
+	add_child(content)
+
+	var title := Label.new()
+	title.text = "AUDIO SETTINGS"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_color_override("font_color", Color("#FFE0A0"))
+	content.add_child(title)
+
+	_add_audio_slider("MASTER VOLUME", AudioManager.master_volume, AudioManager.set_master_volume)
+	_add_audio_slider("MUSIC VOLUME", AudioManager.music_volume, AudioManager.set_music_volume)
+	_add_audio_slider("SOUND EFFECTS", AudioManager.sfx_volume, AudioManager.set_sfx_volume)
+
+	var back := Button.new()
+	back.text = "BACK TO MENU"
+	back.custom_minimum_size = Vector2(240, 48)
+	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	back.pressed.connect(_show_main_menu)
+	content.add_child(back)
+
+
+func _add_audio_slider(label_text: String, initial_value: float, setter: Callable) -> void:
+	var group := VBoxContainer.new()
+	group.add_theme_constant_override("separation", 5)
+	content.add_child(group)
+
+	var heading := Label.new()
+	heading.text = "%s  —  %d%%" % [label_text, roundi(initial_value * 100.0)]
+	heading.add_theme_font_size_override("font_size", 16)
+	heading.add_theme_color_override("font_color", Color("#F59E42"))
+	group.add_child(heading)
+
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.01
+	slider.value = initial_value
+	slider.custom_minimum_size = Vector2(420, 28)
+	slider.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	slider.value_changed.connect(func(value: float) -> void:
+		setter.call(value)
+		heading.text = "%s  —  %d%%" % [label_text, roundi(value * 100.0)]
+	)
+	group.add_child(slider)
 
 
 func _show_controls() -> void:
@@ -221,8 +276,6 @@ func _start_game() -> void:
 	get_tree().change_scene_to_file(GAME_SCENE)
 
 
-func _open_test_arena() -> void:
-	get_tree().change_scene_to_file("res://scenes/general_test_arena.tscn")
 
 
 func _open_workshop() -> void:

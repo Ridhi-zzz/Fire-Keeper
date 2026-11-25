@@ -30,6 +30,7 @@ var training_dummy: bool = false
 var knockback_velocity: Vector2 = Vector2.ZERO
 
 var flame_time: float = 0.0
+var hit_flash_timer: float = 0.0
 var blink_timer: float = 0.0
 var blink_wait: float = 2.5
 
@@ -83,6 +84,8 @@ func _process(delta: float) -> void:
 		return
 
 	attack_visual_timer = maxf(0.0, attack_visual_timer - delta)
+	hit_flash_timer = maxf(0.0, hit_flash_timer - delta)
+	hit_flash_timer = maxf(0.0, hit_flash_timer - delta)
 
 	if blink_timer > 0.0:
 		blink_timer = maxf(0.0, blink_timer - delta)
@@ -200,6 +203,7 @@ func begin_attack(direction: Vector2) -> void:
 
 
 func perform_melee_attack() -> void:
+	AudioManager.play_sfx("projectile", 0.55)
 	is_winding_up = false
 	attack_cooldown_timer = attack_cooldown
 	attack_visual_timer = 0.18
@@ -248,7 +252,9 @@ func take_damage(
 	if is_dying:
 		return
 
+	AudioManager.play_sfx("enemy_hit", 0.65)
 	health -= amount
+	hit_flash_timer = 0.14
 	blink_timer = 0.24
 
 	knockback_velocity = knockback_direction.normalized() * 260.0
@@ -263,6 +269,7 @@ func die() -> void:
 	if is_dying:
 		return
 
+	AudioManager.play_sfx("enemy_death", 0.7)
 	is_dying = true
 	is_winding_up = false
 	death_timer = 0.4
@@ -374,9 +381,12 @@ func _draw() -> void:
 	)
 
 	var body_color := Color("#E7D8B5")
-
 	if attack_style == AttackStyle.RANGED:
 		body_color = Color("#AFA3CE")
+	if hit_flash_timer > 0.0:
+		body_color = Color.WHITE
+	if hit_flash_timer > 0.0:
+		body_color = Color.WHITE
 
 	draw_colored_polygon(
 		PackedVector2Array([
@@ -414,6 +424,12 @@ func _draw() -> void:
 
 	var outer_flame := Color("#F59E42")
 	var inner_flame := Color("#FFE7A0")
+	if hit_flash_timer > 0.0:
+		outer_flame = Color.WHITE
+		inner_flame = Color.WHITE
+	if hit_flash_timer > 0.0:
+		outer_flame = Color.WHITE
+		inner_flame = Color.WHITE
 
 	if attack_style == AttackStyle.RANGED:
 		outer_flame = Color("#9875F5")

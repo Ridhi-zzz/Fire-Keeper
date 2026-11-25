@@ -175,6 +175,7 @@ func begin_attack(direction: Vector2) -> void:
 
 
 func perform_melee_attack() -> void:
+	AudioManager.play_sfx("projectile", 0.6)
 	is_winding_up = false
 	cooldown_timer = attack_cooldown
 	attack_visual_timer = 0.42
@@ -218,6 +219,7 @@ func take_damage(amount: float, knockback_direction: Vector2 = Vector2.ZERO) -> 
 	if is_dying:
 		return
 
+	AudioManager.play_sfx("enemy_hit", 0.7)
 	health -= amount
 	hit_flash_timer = 0.24
 	hit_reaction_timer = hit_reaction_duration
@@ -233,6 +235,7 @@ func take_damage(amount: float, knockback_direction: Vector2 = Vector2.ZERO) -> 
 func die() -> void:
 	if is_dying:
 		return
+	AudioManager.play_sfx("enemy_death", 0.75)
 	is_dying = true
 
 	# Boss-summoned lanterns notify the Warden so it knows when all four

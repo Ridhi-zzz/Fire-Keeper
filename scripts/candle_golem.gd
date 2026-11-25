@@ -336,6 +336,7 @@ func _choose_next_attack(distance: float) -> void:
 # --------------------------------------------------
 
 func start_ground_slam() -> void:
+	AudioManager.play_sfx("boss_warn", 0.8)
 	if is_dying or slam_active or burst_active or eruption_active or summon_active:
 		return
 
@@ -407,6 +408,7 @@ func _update_shockwave_hitbox(delta: float) -> void:
 # --------------------------------------------------
 
 func start_radiant_burst() -> void:
+	AudioManager.play_sfx("boss_warn", 0.75)
 	if is_dying or slam_active or burst_active or eruption_active or summon_active:
 		return
 
@@ -466,6 +468,7 @@ func _fire_projectile_volley(diagonal: bool) -> void:
 # --------------------------------------------------
 
 func start_wax_eruption() -> void:
+	AudioManager.play_sfx("boss_warn", 0.7)
 	if is_dying or slam_active or burst_active or eruption_active or summon_active:
 		return
 
@@ -559,6 +562,7 @@ func _check_eruption_damage(hazard: Dictionary) -> void:
 # --------------------------------------------------
 
 func start_candle_summon() -> void:
+	AudioManager.play_sfx("boss_shield", 0.7)
 	if is_dying or slam_active or burst_active or eruption_active or summon_active:
 		return
 
@@ -619,6 +623,7 @@ func take_damage(
 	if is_dying:
 		return
 
+	AudioManager.play_sfx("enemy_hit", 0.9)
 	health = maxf(0.0, health - amount)
 	hit_flash_timer = 0.19
 

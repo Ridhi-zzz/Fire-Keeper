@@ -12,6 +12,8 @@ var unlocked_cauldrons: Array = ["default"]
 var equipped_cauldron: String = "default"
 var pending_temp_upgrades: Array = []
 var open_workshop_on_menu: bool = false
+var test_room_override: int = 0
+var test_buffs: Array[String] = []
 
 
 func _ready() -> void:
