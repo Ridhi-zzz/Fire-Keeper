@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://ct1ca473d0cbh"]
+
+[ext_resource type="Script" uid="uid://8pl23g1cdko7" path="res://scripts/general_test_arena.gd" id="1_movml"]
+[ext_resource type="PackedScene" uid="uid://blg5l8pwsinkq" path="res://scenes/candle_golem.tscn" id="2_evc5h"]
+
+[node name="general_test_arena" type="Node2D" unique_id=1058116385]
+script = ExtResource("1_movml")
+
+[node name="CandleGolem" parent="." unique_id=984538046 instance=ExtResource("2_evc5h")]
+position = Vector2(0, -150)

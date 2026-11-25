@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bwwej31wtqfg2"]
+
+[ext_resource type="Script" uid="uid://o6ppme703t3m" path="res://scripts/candle.gd" id="1_ctofe"]
+
+[node name="Candle" type="CharacterBody2D" unique_id=1542517075]
+script = ExtResource("1_ctofe")

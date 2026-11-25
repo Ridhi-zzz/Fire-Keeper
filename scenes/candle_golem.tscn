@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://blg5l8pwsinkq"]
+
+[ext_resource type="Script" uid="uid://rkxpi7fbsqo5" path="res://scripts/candle_golem.gd" id="1_0s4e5"]
+
+[node name="CandleGolem" type="CharacterBody2D" unique_id=984538046]
+script = ExtResource("1_0s4e5")
